@@ -1,19 +1,17 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type FormState = {
-  idea: string;
-  industry: string;
-  targetUser: string;
-  budget: string;
-  mobile: string;
-  appStore: string;
-};
+import {
+  FormState,
+  planToMarkdown,
+  runSoftwareFactoryAgent,
+} from "@/lib/softwareFactoryAgent";
 
-type ResultModule = {
-  title: string;
-  items: string[];
+type LocalProject = {
+  id: string;
+  createdAt: string;
+  form: FormState;
 };
 
 const initialForm: FormState = {
@@ -28,109 +26,45 @@ const initialForm: FormState = {
 const fieldStyle =
   "mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
 
-function buildMockResults(form: FormState): ResultModule[] {
-  const productName = form.idea.trim() || "企业级 AI Agent 软件生成助手";
+const historyStorageKey = "software-factory-local-projects";
 
-  return [
-    {
-      title: "产品定位",
-      items: [
-        `${productName} 是一个面向 ${form.industry} 场景的 Web SaaS 工具，帮助用户把软件想法整理成可执行的产品与开发方案。`,
-        "第一阶段聚焦需求梳理、方案生成和任务拆分，不接入真实 AI、数据库或支付。",
-      ],
-    },
-    {
-      title: "目标用户",
-      items: [
-        `主要服务对象：${form.targetUser}。`,
-        "适合不熟悉软件开发流程、但需要快速评估软件可行性和开发范围的业务团队。",
-      ],
-    },
-    {
-      title: "PRD 产品需求文档",
-      items: [
-        "用户输入软件想法后，系统输出产品背景、核心目标、功能范围、页面结构和交付清单。",
-        "MVP 需要保证输入清晰、结果结构完整、内容便于复制给开发或外包团队。",
-      ],
-    },
-    {
-      title: "MVP 功能清单",
-      items: [
-        "软件想法输入表单。",
-        "模拟生成 12 个标准模块。",
-        "结果分区展示，方便逐块阅读和后续复制。",
-      ],
-    },
-    {
-      title: "页面结构",
-      items: [
-        "首页 / 工作台：输入想法并查看生成结果。",
-        "后续版本可增加项目历史页、项目详情页、设置页和登录页。",
-      ],
-    },
-    {
-      title: "数据库设计",
-      items: [
-        "MVP 本次不连接数据库。",
-        "后续可设计 users、projects、generated_documents、generation_runs 四类核心数据表。",
-      ],
-    },
-    {
-      title: "API 接口清单",
-      items: [
-        "MVP 本次不创建后端 API。",
-        "后续可增加创建项目、生成文档、读取历史记录、更新项目状态等接口。",
-      ],
-    },
-    {
-      title: "AI Agent 工作流",
-      items: [
-        "收集软件想法和约束条件。",
-        "拆分产品、技术、测试、发布四类输出。",
-        "生成结构化结果并提示下一步开发任务。",
-      ],
-    },
-    {
-      title: "测试用例",
-      items: [
-        "表单为空时仍能展示默认模拟结果。",
-        "选择移动端或应用商店上架后，生成结果中能反映对应约束。",
-      ],
-    },
-    {
-      title: "开发任务清单",
-      items: [
-        "初始化 Next.js + TypeScript + Tailwind CSS 项目。",
-        "完成中文工作台页面、输入表单和模拟结果展示。",
-        "运行 lint 与 build，确认基础工程可用。",
-      ],
-    },
-    {
-      title: "上架材料清单",
-      items: [
-        form.appStore === "需要"
-          ? "后续需要准备应用名称、介绍文案、截图、隐私政策和审核说明。"
-          : "当前阶段不准备应用商店上架材料。",
-        "本次不会提交任何应用商店审核。",
-      ],
-    },
-    {
-      title: "迭代计划",
-      items: [
-        `预算范围建议按 ${form.budget} 控制 MVP 范围，先验证核心工作台。`,
-        form.mobile === "需要"
-          ? "下一步需要补充移动端适配和移动端页面验收。"
-          : "下一步优先完善 Web 端生成质量、历史记录和账号体系。",
-      ],
-    },
-  ];
+function readLocalProjects() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const rawValue = window.localStorage.getItem(historyStorageKey);
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(rawValue) as LocalProject[];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalProjects(projects: LocalProject[]) {
+  window.localStorage.setItem(historyStorageKey, JSON.stringify(projects));
 }
 
 export default function Home() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [generatedAt, setGeneratedAt] = useState("");
+  const [localProjects, setLocalProjects] = useState<LocalProject[]>([]);
+  const [copyStatus, setCopyStatus] = useState("复制 Markdown");
 
-  const results = useMemo(() => buildMockResults(form), [form]);
+  const plan = useMemo(() => runSoftwareFactoryAgent(form), [form]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setLocalProjects(readLocalProjects());
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({
@@ -141,7 +75,31 @@ export default function Home() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const createdAt = new Date().toLocaleString("zh-CN");
+    const nextProject: LocalProject = {
+      id: crypto.randomUUID(),
+      createdAt,
+      form,
+    };
+    const nextProjects = [nextProject, ...readLocalProjects()];
+
+    writeLocalProjects(nextProjects);
+    setLocalProjects(nextProjects);
     setHasGenerated(true);
+    setGeneratedAt(createdAt);
+    setCopyStatus("复制 Markdown");
+  }
+
+  async function copyCurrentPlan() {
+    await navigator.clipboard.writeText(planToMarkdown(plan));
+    setCopyStatus("已复制");
+  }
+
+  function openLocalProject(project: LocalProject) {
+    setForm(project.form);
+    setGeneratedAt(project.createdAt);
+    setHasGenerated(true);
+    setCopyStatus("复制 Markdown");
   }
 
   return (
@@ -275,6 +233,40 @@ export default function Home() {
               生成模拟软件方案
             </button>
           </div>
+
+          <section className="mt-6 border-t border-gray-100 pt-5">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-gray-950">
+                本地生成历史
+              </h3>
+              <span className="text-xs text-gray-500">
+                {localProjects.length} 条
+              </span>
+            </div>
+            {localProjects.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {localProjects.slice(0, 5).map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => openLocalProject(project)}
+                    className="w-full rounded-md border border-gray-200 bg-gray-50 p-3 text-left transition hover:border-blue-200 hover:bg-blue-50"
+                  >
+                    <p className="line-clamp-2 text-sm font-medium text-gray-900">
+                      {project.form.idea || "未命名软件想法"}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {project.createdAt}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-gray-500">
+                生成后会自动保存在当前浏览器，方便你回看。
+              </p>
+            )}
+          </section>
         </form>
 
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -282,7 +274,7 @@ export default function Home() {
             <div>
               <h2 className="text-xl font-semibold text-gray-950">模拟生成结果</h2>
               <p className="mt-2 text-sm text-gray-600">
-                当前仅为静态演示，不连接 Supabase、OpenAI API、支付或部署服务。
+                当前由本地模拟 Agent 引擎生成，不连接 Supabase、OpenAI API、支付或部署服务。
               </p>
             </div>
             <span className="w-fit rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
@@ -291,29 +283,92 @@ export default function Home() {
           </div>
 
           {hasGenerated ? (
-            <div className="grid gap-4 p-5 md:grid-cols-2">
-              {results.map((module, index) => (
-                <article
-                  key={module.title}
-                  className="rounded-md border border-gray-200 bg-gray-50 p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-blue-700 text-sm font-semibold text-white">
-                      {index + 1}
-                    </span>
-                    <h3 className="text-base font-semibold text-gray-950">
-                      {module.title}
+            <div className="space-y-5 p-5">
+              <section className="rounded-md border border-blue-100 bg-blue-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-blue-800">
+                      Agent 已完成一次本地推演
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-gray-950">
+                      {plan.projectName}
                     </h3>
+                    <p className="mt-2 text-sm leading-6 text-gray-700">
+                      {plan.summary}
+                    </p>
                   </div>
-                  <ul className="mt-4 space-y-2 text-sm leading-6 text-gray-600">
-                    {module.items.map((item) => (
-                      <li key={item} className="border-l-2 border-gray-300 pl-3">
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
+                  <span className="w-fit rounded-md bg-white px-3 py-1 text-xs font-medium text-blue-800">
+                    {generatedAt}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={copyCurrentPlan}
+                  className="mt-4 rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800"
+                >
+                  {copyStatus}
+                </button>
+              </section>
+
+              <section>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="text-base font-semibold text-gray-950">
+                    Agent 执行链路
+                  </h3>
+                  <span className="text-xs font-medium text-gray-500">
+                    本地模拟，未调用真实模型
+                  </span>
+                </div>
+                <div className="grid gap-3 lg:grid-cols-5">
+                  {plan.workflow.map((step, index) => (
+                    <article
+                      key={step.name}
+                      className="rounded-md border border-gray-200 bg-gray-50 p-3"
+                    >
+                      <span className="flex size-7 items-center justify-center rounded-md bg-gray-900 text-xs font-semibold text-white">
+                        {index + 1}
+                      </span>
+                      <h4 className="mt-3 text-sm font-semibold text-gray-950">
+                        {step.name}
+                      </h4>
+                      <p className="mt-2 text-xs leading-5 text-gray-600">
+                        {step.role}
+                      </p>
+                      <p className="mt-3 border-t border-gray-200 pt-3 text-xs leading-5 text-gray-700">
+                        {step.output}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="grid gap-4 md:grid-cols-2">
+                {plan.modules.map((module, index) => (
+                  <article
+                    key={module.title}
+                    className="rounded-md border border-gray-200 bg-gray-50 p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-blue-700 text-sm font-semibold text-white">
+                        {index + 1}
+                      </span>
+                      <h3 className="text-base font-semibold text-gray-950">
+                        {module.title}
+                      </h3>
+                    </div>
+                    <ul className="mt-4 space-y-2 text-sm leading-6 text-gray-600">
+                      {module.items.map((item) => (
+                        <li
+                          key={item}
+                          className="border-l-2 border-gray-300 pl-3"
+                        >
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </section>
             </div>
           ) : (
             <div className="flex min-h-[520px] items-center justify-center p-8 text-center">
