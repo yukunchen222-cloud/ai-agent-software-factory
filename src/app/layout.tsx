@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "企业级 AI Agent 软件生成助手",
-  description: "一个用于生成软件产品方案、研发任务和上线准备材料的 Web SaaS MVP。",
+  title: "企业级 AI Agent / 程序交付工厂",
+  description: "一个用于本地生成客户项目交付包、开发任务、测试验收和上架材料的 Web MVP。",
 };
 
 export default function RootLayout({

@@ -15,18 +15,29 @@ type LocalProject = {
 };
 
 const initialForm: FormState = {
-  idea: "",
-  industry: "企业服务",
-  targetUser: "中小企业负责人",
+  clientName: "",
+  projectName: "",
+  projectType: "AI Agent",
+  targetPlatforms: "Web",
+  coreProblem: "",
+  requiredFeatures: "",
+  targetUsers: "",
   budget: "5万以内",
-  mobile: "暂不需要",
-  appStore: "暂不需要",
+  deadline: "2-4周",
+  needsLogin: "暂不需要",
+  needsDatabase: "暂不需要",
+  needsAdmin: "暂不需要",
+  needsAi: "需要",
+  needsPayment: "暂不需要",
+  needsListing: "暂不需要",
+  thirdPartyIntegrations: "",
+  complianceNotes: "",
 };
 
 const fieldStyle =
   "mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
 
-const historyStorageKey = "software-factory-local-projects";
+const historyStorageKey = "delivery-factory-local-projects";
 
 function readLocalProjects() {
   if (typeof window === "undefined") {
@@ -54,7 +65,7 @@ export default function Home() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [generatedAt, setGeneratedAt] = useState("");
   const [localProjects, setLocalProjects] = useState<LocalProject[]>([]);
-  const [copyStatus, setCopyStatus] = useState("复制 Markdown");
+  const [copyStatus, setCopyStatus] = useState("复制交付包 Markdown");
 
   const plan = useMemo(() => runSoftwareFactoryAgent(form), [form]);
 
@@ -87,7 +98,7 @@ export default function Home() {
     setLocalProjects(nextProjects);
     setHasGenerated(true);
     setGeneratedAt(createdAt);
-    setCopyStatus("复制 Markdown");
+    setCopyStatus("复制交付包 Markdown");
   }
 
   async function copyCurrentPlan() {
@@ -99,7 +110,7 @@ export default function Home() {
     setForm(project.form);
     setGeneratedAt(project.createdAt);
     setHasGenerated(true);
-    setCopyStatus("复制 Markdown");
+    setCopyStatus("复制交付包 Markdown");
   }
 
   return (
@@ -107,137 +118,242 @@ export default function Home() {
       <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold text-blue-700">Web SaaS MVP</p>
+            <p className="text-sm font-semibold text-blue-700">
+              本地客户项目交付工厂
+            </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-normal text-gray-950 sm:text-4xl">
-              企业级 AI Agent 软件生成助手
+              企业级 AI Agent / 程序交付工厂
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-gray-600">
-              输入一个软件想法，先用模拟生成方式输出产品、研发、测试和发布准备材料，让非技术用户也能看懂下一步该做什么。
+              面向你自己的客户项目，输入客户需求和指定功能，生成可开发、可测试、可部署、可上架、可迭代的本地交付包。
             </p>
           </div>
           <div className="grid grid-cols-3 gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 text-center">
             <div>
               <p className="text-2xl font-semibold text-gray-950">12</p>
-              <p className="text-xs text-gray-500">生成模块</p>
+              <p className="text-xs text-gray-500">交付模块</p>
             </div>
             <div>
               <p className="text-2xl font-semibold text-gray-950">0</p>
-              <p className="text-xs text-gray-500">真实 API</p>
+              <p className="text-xs text-gray-500">真实支付</p>
             </div>
             <div>
-              <p className="text-2xl font-semibold text-gray-950">MVP</p>
-              <p className="text-xs text-gray-500">第一阶段</p>
+              <p className="text-2xl font-semibold text-gray-950">本地</p>
+              <p className="text-xs text-gray-500">优先使用</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-6 sm:px-8 lg:grid-cols-[400px_1fr]">
+      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-6 sm:px-8 lg:grid-cols-[430px_1fr]">
         <form
           onSubmit={handleSubmit}
           className="h-fit rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
         >
           <div className="border-b border-gray-100 pb-4">
-            <h2 className="text-xl font-semibold text-gray-950">软件想法输入</h2>
+            <h2 className="text-xl font-semibold text-gray-950">
+              客户项目需求表
+            </h2>
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              先填写业务信息，点击生成后展示静态模拟结果。
+              先把客户是谁、要做什么、哪些功能必须落地写清楚。
             </p>
           </div>
 
           <div className="mt-5 space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <label className="block text-sm font-medium text-gray-800">
+                客户名称
+                <input
+                  value={form.clientName}
+                  onChange={(event) =>
+                    updateField("clientName", event.target.value)
+                  }
+                  placeholder="例如：某某教育公司"
+                  className={fieldStyle}
+                />
+              </label>
+
+              <label className="block text-sm font-medium text-gray-800">
+                项目名称
+                <input
+                  value={form.projectName}
+                  onChange={(event) =>
+                    updateField("projectName", event.target.value)
+                  }
+                  placeholder="例如：招生客服 Agent"
+                  className={fieldStyle}
+                />
+              </label>
+            </div>
+
             <label className="block text-sm font-medium text-gray-800">
-              软件想法
+              客户要解决的问题
               <textarea
-                value={form.idea}
-                onChange={(event) => updateField("idea", event.target.value)}
-                rows={5}
-                placeholder="例如：帮企业自动生成 AI Agent 软件开发方案的工具"
+                value={form.coreProblem}
+                onChange={(event) =>
+                  updateField("coreProblem", event.target.value)
+                }
+                rows={4}
+                placeholder="例如：客户每天收到大量咨询，需要自动回复、收集线索、提醒人工跟进。"
                 className={`${fieldStyle} resize-none`}
               />
             </label>
 
             <label className="block text-sm font-medium text-gray-800">
-              目标行业
-              <select
-                value={form.industry}
-                onChange={(event) => updateField("industry", event.target.value)}
-                className={fieldStyle}
-              >
-                <option>企业服务</option>
-                <option>教育培训</option>
-                <option>本地生活</option>
-                <option>电商零售</option>
-                <option>医疗健康</option>
-                <option>金融科技</option>
-              </select>
+              客户指定功能列表
+              <textarea
+                value={form.requiredFeatures}
+                onChange={(event) =>
+                  updateField("requiredFeatures", event.target.value)
+                }
+                rows={5}
+                placeholder="每行一个功能，例如：自动回复咨询、客户资料收集、生成跟进任务、导出线索表"
+                className={`${fieldStyle} resize-none`}
+              />
             </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-gray-800">
+                项目类型
+                <select
+                  value={form.projectType}
+                  onChange={(event) =>
+                    updateField("projectType", event.target.value)
+                  }
+                  className={fieldStyle}
+                >
+                  <option>AI Agent</option>
+                  <option>Web 程序</option>
+                  <option>内部工具</option>
+                  <option>微信小程序</option>
+                  <option>浏览器插件</option>
+                  <option>移动 App</option>
+                  <option>桌面软件</option>
+                </select>
+              </label>
+
+              <label className="block text-sm font-medium text-gray-800">
+                目标平台
+                <input
+                  value={form.targetPlatforms}
+                  onChange={(event) =>
+                    updateField("targetPlatforms", event.target.value)
+                  }
+                  placeholder="例如：Web、微信小程序、App"
+                  className={fieldStyle}
+                />
+              </label>
+            </div>
 
             <label className="block text-sm font-medium text-gray-800">
               目标用户
               <input
-                value={form.targetUser}
+                value={form.targetUsers}
                 onChange={(event) =>
-                  updateField("targetUser", event.target.value)
+                  updateField("targetUsers", event.target.value)
                 }
-                placeholder="例如：中小企业负责人、产品经理、创业者"
+                placeholder="例如：销售人员、客服主管、终端客户"
+                className={fieldStyle}
+              />
+            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-gray-800">
+                客户预算
+                <select
+                  value={form.budget}
+                  onChange={(event) => updateField("budget", event.target.value)}
+                  className={fieldStyle}
+                >
+                  <option>5万以内</option>
+                  <option>5万-20万</option>
+                  <option>20万-50万</option>
+                  <option>50万以上</option>
+                </select>
+              </label>
+
+              <label className="block text-sm font-medium text-gray-800">
+                交付时间
+                <select
+                  value={form.deadline}
+                  onChange={(event) =>
+                    updateField("deadline", event.target.value)
+                  }
+                  className={fieldStyle}
+                >
+                  <option>1周内</option>
+                  <option>2-4周</option>
+                  <option>1-3个月</option>
+                  <option>时间待确认</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                ["needsLogin", "是否需要登录"],
+                ["needsDatabase", "是否需要数据库"],
+                ["needsAdmin", "是否需要后台管理"],
+                ["needsAi", "是否需要 AI"],
+                ["needsPayment", "是否需要支付"],
+                ["needsListing", "是否需要上架"],
+              ].map(([field, label]) => (
+                <label
+                  key={field}
+                  className="block text-sm font-medium text-gray-800"
+                >
+                  {label}
+                  <select
+                    value={form[field as keyof FormState]}
+                    onChange={(event) =>
+                      updateField(field as keyof FormState, event.target.value)
+                    }
+                    className={fieldStyle}
+                  >
+                    <option>暂不需要</option>
+                    <option>需要</option>
+                  </select>
+                </label>
+              ))}
+            </div>
+
+            <label className="block text-sm font-medium text-gray-800">
+              第三方平台 / API
+              <input
+                value={form.thirdPartyIntegrations}
+                onChange={(event) =>
+                  updateField("thirdPartyIntegrations", event.target.value)
+                }
+                placeholder="例如：企业微信、飞书、Stripe、微信支付"
                 className={fieldStyle}
               />
             </label>
 
             <label className="block text-sm font-medium text-gray-800">
-              预算范围
-              <select
-                value={form.budget}
-                onChange={(event) => updateField("budget", event.target.value)}
-                className={fieldStyle}
-              >
-                <option>5万以内</option>
-                <option>5万-20万</option>
-                <option>20万-50万</option>
-                <option>50万以上</option>
-              </select>
+              合规 / 隐私 / 上架备注
+              <textarea
+                value={form.complianceNotes}
+                onChange={(event) =>
+                  updateField("complianceNotes", event.target.value)
+                }
+                rows={3}
+                placeholder="例如：需要隐私政策、不能上传客户数据、需要审核测试账号"
+                className={`${fieldStyle} resize-none`}
+              />
             </label>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <label className="block text-sm font-medium text-gray-800">
-                是否需要移动端
-                <select
-                  value={form.mobile}
-                  onChange={(event) => updateField("mobile", event.target.value)}
-                  className={fieldStyle}
-                >
-                  <option>暂不需要</option>
-                  <option>需要</option>
-                </select>
-              </label>
-
-              <label className="block text-sm font-medium text-gray-800">
-                是否需要应用商店上架
-                <select
-                  value={form.appStore}
-                  onChange={(event) =>
-                    updateField("appStore", event.target.value)
-                  }
-                  className={fieldStyle}
-                >
-                  <option>暂不需要</option>
-                  <option>需要</option>
-                </select>
-              </label>
-            </div>
 
             <button
               type="submit"
               className="w-full rounded-md bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
-              生成模拟软件方案
+              生成客户项目交付包
             </button>
           </div>
 
           <section className="mt-6 border-t border-gray-100 pt-5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-gray-950">
-                本地生成历史
+                本地项目历史
               </h3>
               <span className="text-xs text-gray-500">
                 {localProjects.length} 条
@@ -252,10 +368,11 @@ export default function Home() {
                     onClick={() => openLocalProject(project)}
                     className="w-full rounded-md border border-gray-200 bg-gray-50 p-3 text-left transition hover:border-blue-200 hover:bg-blue-50"
                   >
-                    <p className="line-clamp-2 text-sm font-medium text-gray-900">
-                      {project.form.idea || "未命名软件想法"}
+                    <p className="text-sm font-medium text-gray-900">
+                      {project.form.projectName || "未命名客户项目"}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
+                      {project.form.clientName || "未填写客户"} /{" "}
                       {project.createdAt}
                     </p>
                   </button>
@@ -263,7 +380,7 @@ export default function Home() {
               </div>
             ) : (
               <p className="mt-3 text-sm leading-6 text-gray-500">
-                生成后会自动保存在当前浏览器，方便你回看。
+                生成后会自动保存在当前浏览器，方便你回看客户项目。
               </p>
             )}
           </section>
@@ -272,13 +389,15 @@ export default function Home() {
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-gray-100 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-950">模拟生成结果</h2>
+              <h2 className="text-xl font-semibold text-gray-950">
+                客户项目交付包
+              </h2>
               <p className="mt-2 text-sm text-gray-600">
-                当前由本地模拟 Agent 引擎生成，不连接 Supabase、OpenAI API、支付或部署服务。
+                当前由本地交付 Agent 生成，不下载外部项目，不连接真实 API、支付、部署或上架服务。
               </p>
             </div>
             <span className="w-fit rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
-              安全模式
+              本地安全模式
             </span>
           </div>
 
@@ -288,7 +407,7 @@ export default function Home() {
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-blue-800">
-                      Agent 已完成一次本地推演
+                      交付 Agent 已完成一次本地推演
                     </p>
                     <h3 className="mt-2 text-lg font-semibold text-gray-950">
                       {plan.projectName}
@@ -308,6 +427,37 @@ export default function Home() {
                 >
                   {copyStatus}
                 </button>
+              </section>
+
+              <section className="grid gap-4 md:grid-cols-[260px_1fr]">
+                <article className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm font-semibold text-gray-950">
+                    交付成熟度
+                  </p>
+                  <p className="mt-3 text-lg font-semibold text-blue-700">
+                    {plan.maturity}
+                  </p>
+                </article>
+                <article className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm font-semibold text-gray-950">
+                    风险提示
+                  </p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {plan.risks.map((risk) => (
+                      <div
+                        key={`${risk.level}-${risk.title}`}
+                        className="rounded-md border border-gray-200 bg-white p-3"
+                      >
+                        <p className="text-sm font-semibold text-gray-950">
+                          【{risk.level}】{risk.title}
+                        </p>
+                        <p className="mt-2 text-xs leading-5 text-gray-600">
+                          {risk.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
               </section>
 
               <section>
@@ -371,13 +521,13 @@ export default function Home() {
               </section>
             </div>
           ) : (
-            <div className="flex min-h-[520px] items-center justify-center p-8 text-center">
+            <div className="flex min-h-[620px] items-center justify-center p-8 text-center">
               <div className="max-w-md">
                 <p className="text-lg font-semibold text-gray-950">
-                  填写左侧表单后，点击按钮查看 12 个模块的模拟输出。
+                  填写左侧客户需求表后，点击按钮生成交付包。
                 </p>
                 <p className="mt-3 text-sm leading-6 text-gray-600">
-                  这一步用于验证 Web MVP 骨架和页面体验，后续确认后再接入真实 AI 和数据库。
+                  交付包会包含 12 个模块、风险提示、成熟度判断和可复制的 Markdown 文档。
                 </p>
               </div>
             </div>

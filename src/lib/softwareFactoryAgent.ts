@@ -1,10 +1,21 @@
 export type FormState = {
-  idea: string;
-  industry: string;
-  targetUser: string;
+  clientName: string;
+  projectName: string;
+  projectType: string;
+  targetPlatforms: string;
+  coreProblem: string;
+  requiredFeatures: string;
+  targetUsers: string;
   budget: string;
-  mobile: string;
-  appStore: string;
+  deadline: string;
+  needsLogin: string;
+  needsDatabase: string;
+  needsAdmin: string;
+  needsAi: string;
+  needsPayment: string;
+  needsListing: string;
+  thirdPartyIntegrations: string;
+  complianceNotes: string;
 };
 
 export type AgentWorkflowStep = {
@@ -18,14 +29,109 @@ export type ResultModule = {
   items: string[];
 };
 
+export type DeliveryRisk = {
+  level: "低" | "中" | "高";
+  title: string;
+  detail: string;
+};
+
 export type SoftwarePlan = {
   projectName: string;
   summary: string;
+  maturity: string;
+  risks: DeliveryRisk[];
   workflow: AgentWorkflowStep[];
   modules: ResultModule[];
 };
 
+function asList(value: string, fallback: string[]) {
+  const items = value
+    .split(/\n|,|，|、/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length > 0 ? items : fallback;
+}
+
+function isNeeded(value: string) {
+  return value === "需要";
+}
+
+function buildRisks(form: FormState): DeliveryRisk[] {
+  const risks: DeliveryRisk[] = [];
+
+  if (isNeeded(form.needsPayment)) {
+    risks.push({
+      level: "高",
+      title: "真实支付需要单独确认",
+      detail: "接入支付前必须确认支付主体、回调安全、退款规则和合规要求，本工具不会自动接入真实支付。",
+    });
+  }
+
+  if (isNeeded(form.needsListing)) {
+    risks.push({
+      level: "中",
+      title: "上架审核存在不确定性",
+      detail: "应用商店、小程序平台或插件市场可能要求隐私政策、截图、测试账号和审核说明。",
+    });
+  }
+
+  if (isNeeded(form.needsDatabase)) {
+    risks.push({
+      level: "中",
+      title: "数据库迁移需要人工确认",
+      detail: "正式创建表、迁移数据库、删除字段或清理数据前必须再次确认，避免误删客户数据。",
+    });
+  }
+
+  if (form.thirdPartyIntegrations.trim()) {
+    risks.push({
+      level: "中",
+      title: "第三方平台密钥不能写进代码",
+      detail: "第三方 API Key、Secret、Webhook Token 必须放在环境变量或平台密钥管理中。",
+    });
+  }
+
+  if (!form.coreProblem.trim() || !form.requiredFeatures.trim()) {
+    risks.push({
+      level: "高",
+      title: "客户需求还不够清楚",
+      detail: "核心问题或指定功能为空时，只能生成初步方案，不能直接进入开发交付。",
+    });
+  }
+
+  return risks.length > 0
+    ? risks
+    : [
+        {
+          level: "低",
+          title: "当前未发现高风险项",
+          detail: "仍建议在正式开发、部署、上架和接入真实服务前逐项复核。",
+        },
+      ];
+}
+
+function buildMaturity(form: FormState, risks: DeliveryRisk[]) {
+  if (!form.coreProblem.trim() || !form.requiredFeatures.trim()) {
+    return "需求不清楚";
+  }
+
+  if (risks.some((risk) => risk.level === "高")) {
+    return "可做 MVP，开发前需确认高风险项";
+  }
+
+  if (isNeeded(form.needsListing)) {
+    return "可开发，后续需要补齐上架材料";
+  }
+
+  return "可开发，可进入本地 MVP 制作";
+}
+
 export function planToMarkdown(plan: SoftwarePlan) {
+  const risks = plan.risks
+    .map((risk) => `- 【${risk.level}】${risk.title}：${risk.detail}`)
+    .join("\n");
+
   const workflow = plan.workflow
     .map(
       (step, index) =>
@@ -42,151 +148,169 @@ export function planToMarkdown(plan: SoftwarePlan) {
     )
     .join("\n\n");
 
-  return `# ${plan.projectName}\n\n${plan.summary}\n\n## Agent 执行链路\n\n${workflow}\n\n${modules}\n`;
-}
-
-function needMobile(form: FormState) {
-  return form.mobile === "需要";
-}
-
-function needAppStore(form: FormState) {
-  return form.appStore === "需要";
+  return `# ${plan.projectName}\n\n${plan.summary}\n\n## 交付成熟度\n\n${plan.maturity}\n\n## 风险提示\n\n${risks}\n\n## Agent 执行链路\n\n${workflow}\n\n${modules}\n`;
 }
 
 export function runSoftwareFactoryAgent(form: FormState): SoftwarePlan {
-  const projectName = form.idea.trim() || "企业级 AI Agent 软件生成助手";
-  const mobileScope = needMobile(form)
-    ? "包含 Web 端与移动端适配"
-    : "第一阶段只做 Web 端";
-  const launchScope = needAppStore(form)
-    ? "后续需要准备应用商店上架材料，但本阶段不提交审核"
-    : "本阶段不涉及应用商店上架";
+  const projectName = form.projectName.trim() || "客户项目交付包";
+  const clientName = form.clientName.trim() || "未填写客户";
+  const features = asList(form.requiredFeatures, [
+    "需求录入",
+    "结果生成",
+    "本地历史",
+    "交付包复制",
+  ]);
+  const platforms = asList(form.targetPlatforms, ["Web"]);
+  const integrations = asList(form.thirdPartyIntegrations, ["暂无第三方集成"]);
+  const risks = buildRisks(form);
 
   return {
     projectName,
-    summary: `${projectName} 面向 ${form.industry}，服务 ${form.targetUser}。建议按 ${form.budget} 控制 MVP，${mobileScope}，${launchScope}。`,
+    summary: `${projectName} 是为 ${clientName} 制作的 ${form.projectType} 交付方案，目标平台为 ${platforms.join("、")}，预算 ${form.budget}，期望交付时间 ${form.deadline || "待确认"}。`,
+    maturity: buildMaturity(form, risks),
+    risks,
     workflow: [
       {
-        name: "需求理解 Agent",
-        role: "把用户的软件想法翻译成产品目标和约束条件。",
-        output: "识别行业、目标用户、预算、移动端和上架要求。",
+        name: "客户需求分析 Agent",
+        role: "把客户口头需求整理成可执行的交付目标。",
+        output: "输出客户需求摘要、边界和待确认问题。",
       },
       {
-        name: "产品经理 Agent",
-        role: "整理产品定位、目标用户、PRD 和 MVP 范围。",
-        output: "生成产品定位、PRD 产品需求文档、MVP 功能清单。",
+        name: "功能架构 Agent",
+        role: "判断项目类型、平台范围和核心功能组合。",
+        output: "输出最终产品定义、功能范围和操作流程。",
       },
       {
-        name: "架构设计 Agent",
-        role: "把产品需求拆成页面、数据和接口。",
-        output: "生成页面结构、数据库设计、API 接口清单。",
+        name: "技术落地 Agent",
+        role: "把功能翻译成数据结构、接口和技术选型。",
+        output: "输出数据结构、API / 自动化接口、技术栈建议。",
       },
       {
-        name: "研发管理 Agent",
-        role: "把方案变成开发人员能执行的任务。",
-        output: "生成 AI Agent 工作流、测试用例、开发任务清单。",
+        name: "交付管理 Agent",
+        role: "把项目拆成开发任务、测试验收和发布准备。",
+        output: "输出开发任务、测试验收清单、部署与上架清单。",
       },
       {
-        name: "发布规划 Agent",
-        role: "判断上线准备范围，规避未确认的生产风险。",
-        output: "生成上架材料清单和迭代计划。",
+        name: "迭代规划 Agent",
+        role: "判断当前版本能否交付，并规划后续版本。",
+        output: "输出交付成熟度、风险提示和后续迭代路线。",
       },
     ],
     modules: [
       {
-        title: "产品定位",
+        title: "客户需求摘要",
         items: [
-          `${projectName} 是一个面向 ${form.industry} 场景的 Web SaaS 工具，帮助用户把软件想法整理成可执行的产品与开发方案。`,
-          "第一阶段聚焦需求梳理、方案生成和任务拆分，不接入真实 AI、数据库或支付。",
+          `客户：${clientName}。`,
+          `项目目标：${form.coreProblem || "需要进一步补充客户要解决的问题"}。`,
+          `目标用户：${form.targetUsers || "待确认"}。`,
         ],
       },
       {
-        title: "目标用户",
+        title: "最终产品定义",
         items: [
-          `主要服务对象：${form.targetUser}。`,
-          "适合不熟悉软件开发流程、但需要快速评估软件可行性和开发范围的业务团队。",
+          `交付类型：${form.projectType}。`,
+          `目标平台：${platforms.join("、")}。`,
+          "目标是交付一个可运行、可验收、可继续迭代的客户项目版本。",
         ],
       },
       {
-        title: "PRD 产品需求文档",
+        title: "功能范围",
         items: [
-          "用户输入软件想法后，系统输出产品背景、核心目标、功能范围、页面结构和交付清单。",
-          "MVP 需要保证输入清晰、结果结构完整、内容便于复制给开发或外包团队。",
+          ...features.map((feature) => `核心功能：${feature}。`),
+          isNeeded(form.needsLogin) ? "包含登录 / 身份识别。" : "第一版不强制登录。",
+          isNeeded(form.needsAdmin) ? "包含后台管理能力。" : "第一版不包含复杂后台。",
         ],
       },
       {
-        title: "MVP 功能清单",
+        title: "Agent 能力设计",
         items: [
-          "软件想法输入表单。",
-          "本地 Agent 工作流展示。",
-          "模拟生成 12 个标准模块。",
-          "结果分区展示，方便逐块阅读和后续复制。",
+          isNeeded(form.needsAi)
+            ? "需要 AI Agent：建议拆成需求理解、任务执行、结果检查三个阶段。"
+            : "当前不强制接入 AI，可先做规则型流程或普通程序。",
+          "每个 Agent 都需要明确输入、处理步骤、输出格式和失败兜底策略。",
+          "真实模型接入前先保留本地模拟逻辑，方便测试和验收。",
         ],
       },
       {
-        title: "页面结构",
+        title: "页面 / 操作流程",
         items: [
-          "首页 / 工作台：输入想法并查看生成结果。",
-          "后续版本可增加项目历史页、项目详情页、设置页和登录页。",
+          "入口页：录入客户需求或任务参数。",
+          "执行页：展示处理进度、步骤和中间结果。",
+          "结果页：展示交付成果、复制内容和导出材料。",
+          isNeeded(form.needsAdmin)
+            ? "后台页：管理项目、用户、配置和生成记录。"
+            : "后台页可放到后续版本。",
         ],
       },
       {
-        title: "数据库设计",
+        title: "数据结构",
         items: [
-          "MVP 本次不连接数据库。",
-          "后续可设计 users、projects、generated_documents、generation_runs 四类核心数据表。",
+          isNeeded(form.needsDatabase)
+            ? "建议设计 projects、project_requirements、generated_outputs、delivery_reviews 表。"
+            : "第一版可使用浏览器本地存储，后续再接数据库。",
+          "任何数据库迁移、删表、清理客户数据前都必须人工确认。",
+          "敏感字段、API Key、客户隐私信息不能硬编码到前端代码。",
         ],
       },
       {
-        title: "API 接口清单",
+        title: "API / 自动化接口",
         items: [
-          "MVP 本次不创建后端 API。",
-          "后续可增加创建项目、生成文档、读取历史记录、更新项目状态等接口。",
+          "创建项目接口：保存客户需求和项目配置。",
+          "生成交付包接口：根据需求生成方案、任务和验收清单。",
+          "读取历史接口：查看客户项目记录。",
+          `第三方集成：${integrations.join("、")}。`,
         ],
       },
       {
-        title: "AI Agent 工作流",
+        title: "技术选型",
         items: [
-          "需求理解 Agent 收集软件想法和约束条件。",
-          "产品经理 Agent 拆分定位、PRD 和 MVP。",
-          "架构设计 Agent 生成页面、数据和接口。",
-          "研发管理 Agent 输出测试与开发任务。",
-          "发布规划 Agent 输出上架材料和迭代建议。",
+          "Web MVP：Next.js + TypeScript + Tailwind CSS。",
+          isNeeded(form.needsDatabase)
+            ? "数据库建议：Supabase，正式建表前先确认表结构和 RLS 权限。"
+            : "当前阶段可继续用浏览器本地存储。",
+          isNeeded(form.needsAi)
+            ? "AI 接入建议：OpenAI API，Key 只放环境变量。"
+            : "暂不需要真实 AI API。",
         ],
       },
       {
-        title: "测试用例",
+        title: "开发任务",
         items: [
-          "表单为空时仍能展示默认模拟结果。",
-          "选择移动端或应用商店上架后，生成结果中能反映对应约束。",
-          "每个 Agent 步骤都能在结果区看到对应说明。",
+          "整理客户需求字段和验收口径。",
+          "实现核心页面和主要交互。",
+          "实现本地或后端数据保存。",
+          "实现交付包生成、复制和导出。",
+          "补充错误提示、空状态和基本权限边界。",
         ],
       },
       {
-        title: "开发任务清单",
+        title: "测试验收清单",
         items: [
-          "初始化 Next.js + TypeScript + Tailwind CSS 项目。",
-          "完成中文工作台页面、输入表单和模拟结果展示。",
-          "抽离本地 Agent 引擎，沉淀可扩展的数据结构。",
-          "运行 lint 与 build，确认基础工程可用。",
+          "空表单、长文本、多功能列表都能正常生成。",
+          "客户指定功能都出现在交付包里。",
+          "复制 Markdown 内容完整可读。",
+          "涉及支付、数据库、上架、第三方密钥时都有风险提示。",
+          "交付版本能在目标平台本地运行或预览。",
         ],
       },
       {
-        title: "上架材料清单",
+        title: "部署与上架清单",
         items: [
-          needAppStore(form)
-            ? "后续需要准备应用名称、介绍文案、截图、隐私政策和审核说明。"
-            : "当前阶段不准备应用商店上架材料。",
-          "本次不会提交任何应用商店审核。",
+          "本地验收：运行 lint、build 和手动页面检查。",
+          "预览部署：可使用 Vercel 预览环境，但正式上线前必须确认。",
+          isNeeded(form.needsListing)
+            ? "上架材料：名称、简介、截图、隐私政策、测试账号、审核说明。"
+            : "当前不做应用商店上架。",
+          "不会自动提交生产发布或商店审核。",
         ],
       },
       {
-        title: "迭代计划",
+        title: "后续迭代路线",
         items: [
-          `预算范围建议按 ${form.budget} 控制 MVP 范围，先验证核心工作台。`,
-          needMobile(form)
-            ? "下一步需要补充移动端适配和移动端页面验收。"
-            : "下一步优先完善 Web 端生成质量、历史记录和账号体系。",
+          "V1：完成客户指定核心功能，保证可运行和可验收。",
+          "V2：增加历史记录、编辑能力、导出能力和更完整配置。",
+          "V3：接入真实数据库、真实 AI 或第三方平台。",
+          "V4：补齐部署、监控、上架材料和客户交付文档。",
         ],
       },
     ],
